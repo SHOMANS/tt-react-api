@@ -108,8 +108,27 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({});
-  res.json(users);
+  const search = req.query.q
+    ? {
+        name: {
+          $regex: req.query.q,
+          $options: 'i',
+        },
+      }
+    : {};
+
+  const size = Number(req.query.size) || 10;
+  const page = Number(req.query.page) || 1;
+  const total = await User.countDocuments(search);
+  const users = await User.find(search)
+    .sort({ createdAt: -1 })
+    .limit(size)
+    .skip(size * (page - 1))
+    .select('-password');
+
+  return res
+    .status(200)
+    .json({ users, page, size, total, pages: Math.ceil(total / size) });
 });
 
 // @desc    Delete user
@@ -119,7 +138,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
   if (user) {
-    // await user.remove();
+    await user.remove();
     res.json({ message: 'User removed' });
   } else {
     res.status(404);
@@ -166,4 +185,13 @@ const updateUser = asyncHandler(async (req, res) => {
   }
 });
 
-export { authUser, registerUser, getUserProfile, updateUserProfile, getUsers, deleteUser, getUserById, updateUser };
+export {
+  authUser,
+  registerUser,
+  getUserProfile,
+  updateUserProfile,
+  getUsers,
+  deleteUser,
+  getUserById,
+  updateUser,
+};
